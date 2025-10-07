@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Main",
+            "request": "launch",
+            "mainClass": "org.tuc.spatial.Main",
+            "projectName": "src_2f5ee3d0",
+            "vmArgs": "-Xint"
+        }
+    ]
+}

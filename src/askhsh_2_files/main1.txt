@@ -1,0 +1,232 @@
+package org.tuc.spatial;
+
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Main {
+
+    static final int[] Ns = {200 , 500, 2000, 5000, 10000};
+	static final String[] Modes = { "sparse", "dense"};
+	static final int K = 1024;
+	static final int D = 10;
+	//static final int[] Bs = {4, 32};
+
+    public static void main(String[] args) {
+		
+        System.out.println("========S/R result table========");
+        printTableHeader();
+
+        for (String density : Modes) {
+            for (int N : Ns) {
+                
+                //String monstersFile = "askhsh_2_files/monsters_" +density+ "_" +N+ ".bin";
+                
+                String singleSearchFile = "askhsh_2_files/single_search_" +density+ "_" +N+ ".bin";
+                
+                String nearSearchFile = "askhsh_2_files/near_search_" +density+ "_" +N+ ".bin";
+                
+
+               
+                List<Monster> monsters = readMonsterFromDisk(N, density);
+                
+                List<TucPoint> singlePoint = readCoordinatesFromFile(singleSearchFile);
+                //System.out.println("SinglePoint: " + singlePoint.size());
+                List<TucPoint> nearPoints = readCoordinatesFromFile(nearSearchFile);
+                //System.out.println("NearPoints: " + nearPoints.size());
+
+                SpatialHash sh1 = new SpatialHash(K, D, 4);
+                SpatialHash sh2 = new SpatialHash(K, D, 32);
+
+                for (Monster m : monsters) {
+                    sh1.insert(m);
+                    sh2.insert(m);
+                }
+
+                double nodesS1 = 0, nodesS2 = 0, nodesS3 = 0;
+                double nodesR1 = 0, nodesR2 = 0, nodesR3 = 0;
+                double timeS1 = 0, timeS2 = 0, timeS3 = 0;
+                double timeR1 = 0, timeR2 = 0, timeR3 = 0;
+
+                for (TucPoint p : singlePoint) {
+                    long t0, t1;
+
+                    t0 = System.nanoTime();
+                    sh1.search(p.getX(), p.getY());
+                    t1 = System.nanoTime();
+                    nodesS2 += sh1.CountNodesSearch(p.getX(), p.getY());
+                    timeS2 += t1 - t0;
+                    
+
+                    t0 = System.nanoTime();
+                    sh2.search(p.getX(), p.getY());                    
+                    t1 = System.nanoTime();
+                    nodesS3 += sh2.CountNodesSearch(p.getX(), p.getY());
+                    timeS3 += t1 - t0;
+                    
+                }
+                
+
+                for (TucPoint p : nearPoints) {
+                    long t0, t1;
+
+                    t0 = System.nanoTime();
+                    sh1.rangeSearch(p.getX() - D, p.getY() - D, p.getX() + D, p.getY() + D);
+                    t1 = System.nanoTime();
+                    nodesR2 += sh1.CountNodesRangeSearch(p.getX() - D, p.getY() - D, p.getX() + D, p.getY() + D);
+                    timeR2 += t1 - t0;
+                    
+
+                    t0 = System.nanoTime();
+                    sh2.rangeSearch(p.getX() - D, p.getY() - D, p.getX() + D, p.getY() + D);
+                    t1 = System.nanoTime();
+                    nodesR3 += sh2.CountNodesRangeSearch(p.getX() - D, p.getY() - D, p.getX() + D, p.getY() + D);
+                    timeR3 += t1 - t0;
+                    
+                }
+
+                int total = 100;
+                
+                System.out.printf("%-7s%6d | %8.2f%8.2f%8.2f | %8.2f%8.2f%8.2f | %10.2f%10.2f%10.2f | %10.2f%10.2f%10.2f\n",
+                density, N,
+                nodesS1 / total, nodesS2 / total, nodesS3 / total,
+                nodesR1 / total, nodesR2 / total, nodesR3 / total,
+                timeS1 / total, timeS2 / total, timeS3 / total,
+                timeR1 / total, timeR2 / total, timeR3 / total);
+
+                if(N == 10000 && density.equals("dense")) {
+                    int[][] searchPoints = {{1018, 558}, {992, 518}, {594, 646}, {581, 836}, {718, 827}, {633, 930}};
+
+                    System.out.println("\nSearch result for specific points: ");
+                    for (int[] pt : searchPoints) {
+                        TucPoint found = sh2.search(pt[0], pt[1]);
+                        System.out.printf(" Found (%d, %d): ", pt[0], pt[1]);
+
+                        if(found == null) {
+                            System.out.println("No monsters found");            
+                        } else {
+                            boolean monsterPrinted = false;
+                            for(Monster m : monsters) {
+                                if(m.getX() == found.getX() && m.getY() == found.getY()) {
+                                    System.out.print(m.getName() + " ");
+                                    monsterPrinted = true;
+                                }
+
+                            }
+                            if(!monsterPrinted) {
+                                System.out.println("No monsters found");
+                            }
+                            System.out.println();
+                        }
+                    }
+
+                    System.out.println("\n\n");
+
+                    int nearX = 900;
+                    int nearY = 688;
+                    System.out.printf("Range search result for (%d, %d) :\n", nearX, nearY);
+                    List<TucPoint> nearFound = sh2.findNearPoints(nearX, nearY);
+
+                    if(nearFound.isEmpty()) {
+                        System.out.println("No monster found near the point");
+                    }else {
+                        boolean monsterPrinted = false;
+                        for(TucPoint tp : nearFound) {
+                            for(Monster m : monsters) {
+                                if(m.getX() == tp.getX() && m.getY() == tp.getY()) {
+                                    System.out.printf("(%d, %d): %s\n", tp.getX(), tp.getY(), m.getName());
+                                    monsterPrinted = true;
+                                }
+                            }
+                        }
+                        if(!monsterPrinted) {
+                            System.out.println("No monster found near the point");
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+
+    @SuppressWarnings("CallToPrintStackTrace")
+    public static List<TucPoint> readCoordinatesFromFile(String inputFile) {
+        ArrayList<TucPoint> coordList = new ArrayList<>();
+        try (DataInputStream dis = new DataInputStream(new FileInputStream(inputFile))) {
+            while (dis.available() > 0) { // Ensure we have a full tuple to read
+                int x = dis.readInt(); // Read the integer (4 bytes),
+                                       // java default is Big Endian
+                int y = dis.readInt();
+                coordList.add(new TucPoint(x, y));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return coordList;
+    }
+
+    @SuppressWarnings("CallToPrintStackTrace")
+    public static List<Monster> readMonsterFromDisk(int N, String type) {
+        String inputFile = "askhsh_2_files/monsters_" + type + "_" + N + ".bin";
+        int TUPLE_SIZE = 58;
+        final int STRING_LENGTH = 50;
+        ArrayList<Monster> monsterList = new ArrayList<>();
+        try (DataInputStream dis = new DataInputStream(new FileInputStream(inputFile))) {
+            while (dis.available() >= TUPLE_SIZE) { // Ensure we have a full tuple to read
+                int x = dis.readInt(); // Read the integer (4 bytes),
+                                       // java default is Big Endian
+                int y = dis.readInt();
+                byte[] stringBytes = new byte[STRING_LENGTH];
+                dis.readFully(stringBytes); // Read the 50-byte string
+                // Convert byte array to string, trimming trailing spaces
+                String text = new String(stringBytes, StandardCharsets.UTF_8).trim();
+                monsterList.add(new Monster(x, y, text));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return monsterList;
+    }
+
+    private static void printTableHeader() {
+        System.out.printf("%-7s%6s | %8.2s%8.2s%8.2s | %8.2s%8.2s%8.2s | %10.2s%10.2s%10.2s | %10.2s%10.2s%10.2s\n",
+            "Type", "N", "S1", "S2", "S3", "R1", "R2", "R3", "tS1", "tS2", "tS3", "tR1", "tR2", "tR3");
+        System.out.println("---------------------------------------------------------------------------------------------------------------");
+    }
+    /*private static List<Monster> loadMonsters(String filePath) {
+        List<Monster> monsters = new ArrayList<>();
+        try (DataInputStream dis = new DataInputStream(new FileInputStream(filePath))) {
+            while (dis.available() > 0) {
+                int x = dis.readInt();
+                int y = dis.readInt();
+                byte[] nameBytes = new byte[50];
+                dis.readFully(nameBytes);
+                String name = new String(nameBytes, StandardCharsets.UTF_8).trim();
+                monsters.add(new Monster(x, y, name));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return monsters;
+    }*/
+
+    /*private static List<TucPoint> loadPoints(String filePath) {
+        List<TucPoint> points = new ArrayList<>();
+        try (DataInputStream dis = new DataInputStream(new FileInputStream(filePath))) {
+            while (dis.available() > 0) {
+                int x = dis.readInt();
+                int y = dis.readInt();
+                points.add(new TucPoint(x, y));
+            }
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+        return points;
+    }*/
+}
+
+    
