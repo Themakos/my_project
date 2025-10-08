@@ -40,8 +40,8 @@ public static void main(String[] args) {
         int N = Ns[i];
         // Για καθε Ν τρεχει και sparse και dense
         for (String density : Modes) {
-            String singleSearchFile = "askhsh_2_files/single_search_" + density + "_" + N + ".bin";
-            String nearSearchFile = "askhsh_2_files/near_search_" + density + "_" + N + ".bin";
+            String singleSearchFile = "src/askhsh_2_files/single_search_" + density + "_" + N + ".bin";
+            String nearSearchFile = "src/askhsh_2_files/near_search_" + density + "_" + N + ".bin";
             List<Monster> monsters = readMonsterFromDisk(N, density);
             List<TucPoint> singlePoint = readCoordinatesFromFile(singleSearchFile);
             List<TucPoint> nearPoints = readCoordinatesFromFile(nearSearchFile);
@@ -264,7 +264,7 @@ public static void main(String[] args) {
 
     @SuppressWarnings("CallToPrintStackTrace")
     public static List<Monster> readMonsterFromDisk(int N, String type) {
-        String inputFile = "askhsh_2_files/monsters_" + type + "_" + N + ".bin";
+        String inputFile = "src/askhsh_2_files/monsters_" + type + "_" + N + ".bin";
         int TUPLE_SIZE = 58;
         final int STRING_LENGTH = 50;
         ArrayList<Monster> monsterList = new ArrayList<>();
